@@ -1,5 +1,5 @@
 =================================
-  Script "gen_tree" Version 1.2
+  Script "gen_tree" Version 2.1
 =================================
 
 -----------------------------
@@ -136,17 +136,21 @@ in the script itself!
 You'll probably need to change the two subroutines "url_to_file" and
 "file_to_url" to reflect the file path conventions at your web site.
 
-If you are not using the "mod_rewrite" module of the Apache HTTP server
-(or not using the Apache server at all), then nothing needs to be done
-except the substitution of "/xxxx/../" --> "/".
+At our site, HTML pages do not lie in the user home directories, but in a
+special, hidden subdirectory named ".www".
 
-In that case, remove everything but the last four lines of code from these
-two subroutines! I.e., leave the following intact:
+Also, all user home directories have the form /u/<login>. The same is true
+for group home directories (/g/<login>) and other entity home directories
+(/e/<login>).
 
-    while (${$thispage} =~ m!/[^\./]+/\.\./!)
-    {
-        ${$thispage} =~ s!/[^\./]+/\.\./!/!g;
-    }
+(At our site, there are no other valid URLs than the ones mentioned above!)
+
+Therefore, "url_to_file" inserts ".www" into URLs and "file_to_url" removes
+".www" from file paths.
+
+Delete the corresponding lines (under the header "transformation for hidden
+HTML subdirectories in user home directories") if they don't apply to your
+site, or modify them according to your file path conventions.
 
 You'll probably also want a different layout of the final page. Change the
 two subroutines "html_header" and "html_footer" accordingly!
@@ -165,13 +169,13 @@ http://www.sdm.de/e/www/hilfe/
 
 You can also download this script from there:
 
-http://www.sdm.de/e/www/hilfe/gen_tree-1.2.tar.gz
+http://www.sdm.de/e/www/hilfe/gen_tree-2.1.tar.gz
 
 Or download it from any CPAN (= "Comprehensive Perl Archive Network") ftp
 server near you (see "The Perl 5 Module List" in news:comp.lang.perl.modules
 for a list of CPAN ftp servers):
 
-ftp://..../..../CPAN/authors/id/STBEY/gen_tree-1.2.tar.gz
+ftp://..../..../CPAN/authors/id/STBEY/gen_tree-2.1.tar.gz
 
 
 Frequently Asked Questions (FAQ):
@@ -255,10 +259,29 @@ Version history:
 ----------------
 
 Version 1.0: Initial release.
+
 Version 1.1: Added a feature which enables the script to display non-HTML-
 files in the tree representation (i.e., files for download).
+
 Version 1.2: Improved the documentation (this README file) and changed the
 output format from <PRE> ... ... </PRE> to <DL> <DD>... <DD>... </DL>.
+
+Version 2.0: Many many bug fixes. A "$tree_root" set to "/" should work
+now. Different root directories for HTML pages and CGI scripts are now
+supported. Fixed "url_to_file" and "file_to_url" accordingly. The <TITLE>-
+tag is matched case-insensitive now (I forgot to put the "i" modifier on
+that match in previous versions). Text anchor links (i.e., "#subsection")
+are now completely ignored, as they should (before, they were mistakenly
+regarded as links to the default page in the current directory). The <DT>
+tag is now used in <DL> ... </DL> lists to satisfy browsers who require it.
+
+Version 2.1: It is now possible to have greater control over which pages
+are shown and where (the latter when several links exist to the same page(s))
+by specifying the root page of any given subtree and the number of (topmost)
+levels to be shown of that subtree, i.e. "0" for hiding the subtree complete-
+ly, "1" for showing the root (topmost) page of that subtree only, "2" for
+showing the root page and the pages it contains hyperlinks to, and so on.
+(The number limits the maximum depth of hyperlinks to follow)
 
 
 Thanks:
@@ -271,6 +294,19 @@ spaces for the output format, as realized in version 1.2!
 (Actually he uses <UL> ... </UL> and <LI>, but I find the many different
 little enumeration bullets disturbing and confusing - use whatever you
 like best!)
+
+Many thanks to
+- Fabrizio Pivari <Fabrizio.Pivari@rupia.agip.it>
+- Xin Liu <xliu@merit.edu>
+- Pete Wenzel <pete@stc.com>
+- Detlev Droege <droege@informatik.uni-koblenz.de>
+- Winfield S. Heagy <heagy@csgrad.cs.vt.edu>
+for contributing the many suggestions, bug reports and bug fixes
+that went into version 2.0!
+
+Special thanks to Michael Bruns <bruns@linmbr.mpae.gwdg.de> for suggesting
+the finer tuning capability for excluding pages and subtrees realized in
+version 2.1.
 
 
 Final note:
