@@ -11,10 +11,11 @@ require 5.002;
 #                                                                             #
 #      Version 1.0     -   Written 31.08.96 by Steffen Beyer                  #
 #      Version 1.1     -   Written 01.09.96 by Steffen Beyer                  #
+#      Version 1.2     -   Written 04.09.96 by Steffen Beyer                  #
 #                                                                             #
 ###############################################################################
 #                                                                             #
-#      Copyright (C) 1996 by Steffen Beyer.                                   #
+#      Copyright (c) 1996 by Steffen Beyer.                                   #
 #      All rights reserved.                                                   #
 #                                                                             #
 ###############################################################################
@@ -29,7 +30,7 @@ require 5.002;
 $self = $0;
 $self =~ s!^.*/!!;
 
-$VERSION = '1.1';
+$VERSION = '1.2';
 $version = "version $VERSION";
 
 $separator = ('-' x 78) . "\n";
@@ -43,6 +44,10 @@ $default = 'index';
 $map_ext = 'map';
 
 # ======================= User configurable constants: ========================
+
+# User under which CGI programs are run on your host (usually "nobody"):
+
+$nobody = 'nobody';
 
 # The pattern that uniquely identifies this host in URLs:
 
@@ -95,12 +100,9 @@ push(@skip, '/g/arcus/links.htm');
 push(@skip, '/g/arcus/whitepap/whtpaidx.htm');
 push(@skip, '/g/arcus/cookbook/02basic/bookshlf.htm');
 
-push(@skip, $treefile);
-
-# (it's usually desirable to not include the page generated here itself!)
-
 # Add here file types to be displayed but whose contents is to be ignored:
 
+$html_ext{'txt'} = 5;
 $html_ext{'doc'} = 5;
 $html_ext{'xls'} = 5;
 $html_ext{'zip'} = 5;
@@ -117,10 +119,12 @@ $html_ext{'Z'}   = 5;
 $html_ext{'c'}   = 5;
 $html_ext{'h'}   = 5;
 
-# Allow anchors (<A HREF="...">...</A>)
-# extending over 1) one 2) two 3) several lines
-# by 1) not changing 2) setting to '' 3) undef'ing
-# the internal variable "$/":
+# Enable this script to be able to recognize anchors (<A HREF="...">...</A>)
+# and titles (<TITLE>...</TITLE>) extending over
+#    1) one line       2) one paragraph   3) several paragraphs
+#    (no line breaks)  (no empty lines)   (line breaks and empty lines allowed)
+# by 1) not changing   2) setting to ''   3) undef'ing   the internal variable
+# "$/":
 
 undef $/;
 
@@ -138,9 +142,9 @@ else
 
 # Get nobody's UID and GID:
 
-unless (($nbdy_uid,$nbdy_gid) = (getpwnam('nobody'))[2,3])
+unless (($nbdy_uid,$nbdy_gid) = (getpwnam($nobody))[2,3])
 {
-    die "$self: can't determine UID and GID of user 'nobody'!\n";
+    die "$self: can't determine UID and GID of user '$nobody'!\n";
 }
 
 # Rename logfile if it already exists:
@@ -244,7 +248,13 @@ unless ($error)
     # The start page must be marked as visited here because
     # "traverse_tree" only marks links it finds INSIDE an HTML page:
 
-    unshift(@skip, $start_link);
+    push(@skip, $start_link);
+
+    # The page which is generated here is also excluded; first because
+    # it is still empty at the time of the scan, second because even
+    # if it weren't, it wouldn't make sense:
+
+    push(@skip, $treefile); # (file paths are not changed by "url_to_file"!)
 
     # Mark certain links as visited to automatically skip them later:
 
@@ -778,9 +788,7 @@ sub html_header
 HINWEIS: Diese Seite verzichtet bewu&szlig;t auf Grafik,
 damit sie so schnell wie m&ouml;glich geladen werden kann!
 <P>
-
-<PRE>
-
+<DL>
 VERBATIM
 }
 
@@ -801,22 +809,27 @@ sub html_body
         $title = ${$this}[2];
         unless ($title) { $title = $link; }
         $title =~ s!^sd&amp;m\s+-\s+!!;
-#
-# Maybe one day we support text anchor links:
-#
-# (which is pointless as long as we uniquely identify a document a
-# link points to at the file level (by its device and inode number)!)
-#
-#       if ($link =~ m!^\s*[^#\s]*#([^#\s]+)\s*$!)
-#       {
-#           $title .= " ($1)";
-#       }
-        print TREEFILE '        ' x $level;
-        print TREEFILE qq!<A HREF="$link">$title</A>\n!;
+
+        # Maybe one day we support text anchor links:
+        #
+        # (which is pointless as long as we uniquely identify a document a
+        # link points to at the file level (by its device and inode number)!)
+        #
+        # if ($link =~ m!^\s*[^#\s]*#([^#\s]+)\s*$!)
+        # {
+        #     $title .= " ($1)";
+        # }
+
+        # when using <PRE> ... </PRE> instead of <DL> </DL>:
+        # print TREEFILE '        ' x $level; # instead of <DD> !
+        print TREEFILE qq!<DD><A HREF="$link">$title</A>\n!;
         if (@{$next})
         {
+            print TREEFILE "<DL>\n";
             &html_body($next,$level+1);
-            if (@{$tree}) { print TREEFILE "\n"; }
+            print TREEFILE "</DL>\n";
+            # when using <PRE> ... </PRE> instead of <DL> </DL>:
+            # if (@{$tree}) { print TREEFILE "\n"; }
         }
     }
 }
@@ -828,16 +841,14 @@ sub html_footer
     # uses global TREEFILE
 
     print TREEFILE <<"VERBATIM";
-
-</PRE>
-
+</DL>
 <P>
 Diese Seite wurde mit
 <A HREF="$self">$self $version</A>
 generiert. N&auml;here Informationen sind in der
 <A HREF="README">README</A>-Datei
 zu finden. Beide Dateien zusammen kann man auch
-<A HREF="$self-$VERSION.tar.gz">Downloaden</A>.
+<A HREF="$self-$VERSION.tar.gz">downloaden</A>.
 <P>
 
 <!-- Textende -->
