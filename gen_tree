@@ -14,6 +14,7 @@ require 5.002;
 #      Version 1.2     -   Written 04.09.96 by Steffen Beyer                  #
 #      Version 2.0     -   Written 10.09.96 by Steffen Beyer                  #
 #      Version 2.1     -   Written 16.10.96 by Steffen Beyer                  #
+#      Version 2.2     -   Written 15.05.97 by Steffen Beyer                  #
 #                                                                             #
 ###############################################################################
 #                                                                             #
@@ -32,7 +33,7 @@ require 5.002;
 $self = $0;
 $self =~ s!^.*/!!;
 
-$VERSION = '2.1';
+$VERSION = '2.2';
 $version = "version $VERSION";
 
 $separator = ('-' x 78) . "\n";
@@ -53,7 +54,8 @@ $nobody = 'nobody';
 
 # The pattern that uniquely identifies this host in URLs:
 
-$host_pattern = '\bwww\.sdm\.de\b';
+$host_pattern = '\bwww(?:\.|1\.|2\.|\.de\.|\.ch\.)engelschall\.com\b|\ben3\b|\ben5\b'; # en3/en5
+#$host_pattern = '\bsww1\b|\bsunbi1\b|\bsun\b'; # sunbi1
 
 # The physical path of the directory the HTTP server uses as its root
 # directory for HTML pages (for example, "/usr/local/etc/httpd/htdocs/"):
@@ -71,15 +73,15 @@ $cgi_root = '/';
 # Define here where the recursive descent should start (physical path):
 # (whatever subtree you want)
 
-$tree_root = '/e/www/.www/';
+$tree_root = '/u/sb/.www/';
 
 # Where to put this script's log file (physical path):
 
-$logfile = "/e/www/.www/hilfe/$self.log";
+$logfile = "/u/sb/.www/help/$self.log";
 
 # Where to put this script's output file (physical path):
 
-$treefile = '/e/www/.www/hilfe/index.shtml';
+$treefile = '/u/sb/.www/help/index.body';
 
 # Do not include the following subtrees or pages (URLs):
 
@@ -90,20 +92,30 @@ $treefile = '/e/www/.www/hilfe/index.shtml';
 # 4 = show this page and three more levels down, then prune tree
 # ... and so on
 
-$skip{'/e/www/img/map.cgi'} = 0;
-$skip{'/e/www/unternehmen/beratung/'} = 1;
-$skip{'/e/www/unternehmen/entwicklung/'} = 1;
-$skip{'/e/www/unternehmen/leistungsangebot/'} = 1;
-$skip{'/g/arcus/'} = 1;
+$skip{'/u/sb/help/'} = 0;
+$skip{'/u/sb/whoami/'} = 1;
+$skip{'/u/sb/maptest/'} = 1;
+$skip{'/u/sb/scripts/'} = 1;
+$skip{'/u/sb/missing/'} = 0;
+$skip{'/u/sb/slideshow/projector/'} = 1;
+$skip{'/u/sb/download/statistics/'} = 1;
+
+# Define here the maximum number of levels to show (= maximum number
+# of hyperlinks to follow down the tree) starting with "$tree_root":
+# (Use "-1" for "plus infinity", i.e., no limit at all)
+
+$depth = -1;
 
 # Add here file types to be displayed but whose contents is to be ignored:
 
+$html_ext{'README'} = 5;
 $html_ext{'jpeg'} = 5;
 $html_ext{'mpeg'} = 5;
 $html_ext{'tiff'} = 5;
 $html_ext{'jpg'} = 5;
 $html_ext{'mpg'} = 5;
 $html_ext{'gif'} = 5;
+$html_ext{'xpm'} = 5;
 $html_ext{'tif'} = 5;
 $html_ext{'txt'} = 5;
 $html_ext{'doc'} = 5;
@@ -113,6 +125,7 @@ $html_ext{'bas'} = 5;
 $html_ext{'pas'} = 5;
 $html_ext{'for'} = 5;
 $html_ext{'tar'} = 5;
+$html_ext{'bin'} = 5;
 $html_ext{'pl'}  = 5;
 $html_ext{'pm'}  = 5;
 $html_ext{'xs'}  = 5;
@@ -145,11 +158,11 @@ $root_pattern = "$html_root|$cgi_root";
 
 # Check if this script is running under root:
 
-if (($< == 0) || ($> == 0)) { &restore_root_id; }
-else
-{
-    die "$self: this script needs to be run under root!\n";
-}
+#if (($< == 0) || ($> == 0)) { &restore_root_id; }
+#else
+#{
+#    die "$self: this script needs to be run under root!\n";
+#}
 
 # Get nobody's UID and GID:
 
@@ -275,7 +288,7 @@ unless ($error)
         &url_to_file(\$file);
         if (($thisdir,$thispage) = find_page($file))
         {
-            if (($dev,$ino) = (stat($thispage))[0,1])
+            if (($dev,$ino) = (lstat($thispage))[0,1])
             {
                 $visited{"$dev:$ino"} = $level;
             }
@@ -305,7 +318,7 @@ unless ($error)
 
     $tree = [ ];
 
-    if (($root,$title) = &traverse_tree($tree_root,'',-1))
+    if (($root,$title) = &traverse_tree($tree_root,'',$depth))
     {
         &file_to_url(\$tree_root);
         push(@{$tree},[$root,$tree_root,$title]);
@@ -388,18 +401,6 @@ sub find_page
     {
         print LOGFILE "can't find any file named '$thispage'!\n";
         return();
-    }
-    while (-l $thispage)
-    {
-        $symlink = readlink($thispage);
-        if ($symlink =~ m!^/!)
-        {
-            $thispage = $symlink;
-        }
-        else
-        {
-            $thispage =~ s![^/]*$!$symlink!;
-        }
     }
     if ($thispage =~ m!\.($ext_pattern)$!io)
     {
@@ -597,10 +598,10 @@ sub setup_for_cgi
 
     if ($type == 3)
     {
-        $( = $nbdy_gid; # set GID's first!
-        $) = $nbdy_gid;
-        $< = $nbdy_uid; # set real UID first!
-        $> = $nbdy_uid;
+#       $( = $nbdy_gid; # set GID's first!
+#       $) = $nbdy_gid;
+#       $< = $nbdy_uid; # set real UID first!
+#       $> = $nbdy_uid;
     }
     elsif ($type == 4)
     {
@@ -609,10 +610,10 @@ sub setup_for_cgi
             print LOGFILE "can't stat SCGI script '$thispage': $!\n";
             return 0;
         }
-        $( = $scgi_gid; # set GID's first!
-        $) = $scgi_gid;
-        $< = $scgi_uid; # set real UID first!
-        $> = $scgi_uid;
+#       $( = $scgi_gid; # set GID's first!
+#       $) = $scgi_gid;
+#       $< = $scgi_uid; # set real UID first!
+#       $> = $scgi_uid;
     }
     else { return 0; }
     &file_to_url(\$thispage);
@@ -624,13 +625,13 @@ sub setup_for_cgi
 
 # Subroutine to restore root UID and GID:
 
-sub restore_root_id
-{
-    $< = 0;
-    $> = 0;
-    $( = 0;
-    $) = 0;
-}
+#sub restore_root_id
+#{
+#    $< = 0;
+#    $> = 0;
+#    $( = 0;
+#    $) = 0;
+#}
 
 # Subroutine that does it all:
 
@@ -731,19 +732,20 @@ sub traverse_tree
             }
             elsif (($nextdir,$nextpage) = find_page($nextpage))
             {
-                if (($dev,$ino) = (stat($nextpage))[0,1])
+                if (($dev,$ino) = (lstat($nextpage))[0,1])
                 {
                     if (!defined($visited{"$dev:$ino"}))
                     {
-                        push(@nextpages,
-                            [ $link, $nextpage, $level ] );
+                        push( @nextpages, [ $link, $nextpage, $level ] )
+                            unless ($nextpage =~
+                              m!/(?:redirect\.cgi|(?:img|pkg|license)/[^/]+)$!);
                         $visited{"$dev:$ino"} = 0;
                     }
                     else
                     {
                         if ($visited{"$dev:$ino"} > 0)
                         {
-                            push(@nextpages,
+                            push( @nextpages,
                                 [ $link, $nextpage, $visited{"$dev:$ino"} ] );
                             $visited{"$dev:$ino"} = 0;
                         }
@@ -763,7 +765,7 @@ sub traverse_tree
     # ("$line" may contain a whole page - simultaneously in every
     # call of "traverse_tree" in the recursive descent!)
 
-    &restore_root_id if (($type == 3) || ($type == 4));
+#   &restore_root_id if (($type == 3) || ($type == 4));
     print LOGFILE $separator;
     while (@nextpages)
     {
@@ -786,40 +788,12 @@ sub html_header
     # uses global TREEFILE
 
     print TREEFILE <<"VERBATIM";
-<HTML>
-<HEAD>
-<TITLE>sd&amp;m - hilfe</TITLE>
-<!-- Immer "sd&amp;m - titel" -->
-</HEAD>
-
-<BODY BGCOLOR="#FFFFFF" TEXT="#000000" LINK="#404040" VLINK="#808080" ALINK="#C0C0C0">
-
-<TABLE WIDTH="100%" BORDER="0" CELLSPACING="10" CELLPADDING="10">
-
-<!-- Zeile 1: [Logo] + Seite -->
-
+<TABLE WIDTH="75%" CELLPADDING="0" CELLSPACING="0" BORDER="0">
 <TR>
-
-<!-- [Logo] -->
-
 <TD ALIGN="CENTER" VALIGN="TOP">
-    <IMG SRC="../img/sdm_logo_online.gif" BORDER="0" ALT="[Logo sd&amp;m]">
-</TD>
-
-<!-- Seite -->
-
-<TD ALIGN="LEFT" VALIGN="TOP" ROWSPAN="2">
-
-<!-- Textbeginn -->
-
-<H1>Navigations- und Orientierungs-Hilfe</H1>
-
-<H3>Verzeichnis aller Seiten auf dieser Web-Site:</H3>
-
-<P>
-HINWEIS: Diese Seite verzichtet bewu&szlig;t auf Grafik,
-damit sie so schnell wie m&ouml;glich geladen werden kann!
-<P>
+<TABLE CELLPADDING="0" CELLSPACING="0" BORDER="0">
+<TR>
+<TD ALIGN="LEFT" VALIGN="TOP">
 VERBATIM
 }
 
@@ -832,6 +806,7 @@ sub html_body
 
     # uses global TREEFILE
 
+    if ($level < 2) { print TREEFILE '        ' x $level, "<P>\n"; }
     print TREEFILE '        ' x $level, "<DL>\n";
     while (@{$tree})
     {
@@ -840,16 +815,18 @@ sub html_body
         $link  = ${$this}[1];
         $title = ${$this}[2];
         unless ($title) { $title = $link; }
-        $title =~ s!^sd&amp;m\s+-\s+!!; # remove "sd&m - "
+        $title =~ s!^Steffen Beyer\s+-\s+!!i; # remove "Steffen Beyer - "
         print TREEFILE '        ' x ($level+1);
         print TREEFILE qq!<DT></DT><DD><A HREF="$link">$title</A></DD>\n!;
         if (@{$next})
         {
             &html_body($next,$level+1);
-            if (@{$tree}) { print TREEFILE '        ' x ($level+1), "<P>\n"; }
+#           if (@{$tree}) { print TREEFILE '        ' x ($level+1), "<P>\n"; }
         }
+        if (($level < 2) && @{$tree}) { print TREEFILE '        ' x ($level+1), "<P>\n"; }
     }
     print TREEFILE '        ' x $level, "</DL>\n";
+    if ($level < 2) { print TREEFILE '        ' x $level, "<P>\n"; }
 }
 
 # Subroutine to give out the lower part of the HTML page:
@@ -859,87 +836,12 @@ sub html_footer
     # uses global TREEFILE
 
     print TREEFILE <<"VERBATIM";
-<P>
-Diese Seite wurde mit
-<A HREF="$self">$self $version</A>
-generiert. N&auml;here Informationen sind in der
-<A HREF="README">README</A>-Datei
-zu finden. Beide Dateien zusammen kann man auch
-<A HREF="$self-$VERSION.tar.gz">downloaden</A>.
-<P>
-
-<!-- Textende -->
-
 </TD>
-
 </TR>
-
-<!-- Zeile 2: [Banner] + Seite -->
-
-<TR>
-
-<!-- [Banner] -->
-
-<TD ALIGN="CENTER" VALIGN="MIDDLE">
-    <IMG SRC="img/hilfe_side.gif" ALT="[Banner]" WIDTH="39" HEIGHT="91">
-</TD>
-
-<!-- "Seite" bereits in Zeile 1 definiert, geht bis hierher -->
-
-</TR>
-
-<!-- Zeile 3: [Navleiste] -->
-
-<TR>
-
-<TD>
-    <!-- leer -->
-</TD>
-
-<!-- [Navleiste] -->
-
-<TD ALIGN="LEFT" VALIGN="TOP">
-
-<!--#include virtual="/e/www/navleisten/default1.nav"-->
-
-</TD>
-
-</TR>
-
-<!-- Zeile 4: Navleiste, Copyright + Webmaster -->
-
-<TR>
-
-<TD>
-    <!-- leer -->
-</TD>
-
-<!-- Navleiste, Copyright & Webmaster -->
-
-<TD>
-
-    <TABLE WIDTH="100%" BORDER="0">
-    <TR>
-    <TD ALIGN="LEFT" VALIGN="TOP">
-        <!--#include virtual="/e/www/navleisten/navleiste1.txt"-->
-    </TD>
-    <TD ALIGN="RIGHT" VALIGN="TOP">
-        <FONT COLOR="#A0A0A0">
-        <!--#include virtual="/e/www/navleisten/copyright1.txt"-->
-        Letzte &Auml;nderung: <!--#echo var="LAST_MODIFIED"--><BR>
-        </FONT>
-    </TD>
-    </TR>
-    </TABLE>
-
-</TD>
-
-</TR>
-
 </TABLE>
-
-</BODY>
-</HTML>
+</TD>
+</TR>
+</TABLE>
 VERBATIM
 }
 
