@@ -10,10 +10,11 @@ require 5.002;
 ###############################################################################
 #                                                                             #
 #      Version 1.0     -   Written 31.08.96 by Steffen Beyer                  #
+#      Version 1.1     -   Written 01.09.96 by Steffen Beyer                  #
 #                                                                             #
 ###############################################################################
 #                                                                             #
-#      Copyright (C) 1996 by software design & management GmbH & Co. KG       #
+#      Copyright (C) 1996 by Steffen Beyer.                                   #
 #      All rights reserved.                                                   #
 #                                                                             #
 ###############################################################################
@@ -28,7 +29,8 @@ require 5.002;
 $self = $0;
 $self =~ s!^.*/!!;
 
-$version = 'version 1.0';
+$VERSION = '1.1';
+$version = "version $VERSION";
 
 $separator = ('-' x 78) . "\n";
 
@@ -37,8 +39,6 @@ $separator = ('-' x 78) . "\n";
 $default = 'index';
 
 %html_ext = ('scgi' => 4, 'cgi' => 3, 'shtml' => 2, 'html' => 1, 'htm' => 1);
-
-$ext_pattern = join('|', keys(%html_ext));
 
 $map_ext = 'map';
 
@@ -99,6 +99,24 @@ push(@skip, $treefile);
 
 # (it's usually desirable to not include the page generated here itself!)
 
+# Add here file types to be displayed but whose contents is to be ignored:
+
+$html_ext{'doc'} = 5;
+$html_ext{'xls'} = 5;
+$html_ext{'zip'} = 5;
+$html_ext{'bas'} = 5;
+$html_ext{'pas'} = 5;
+$html_ext{'for'} = 5;
+$html_ext{'tar'} = 5;
+$html_ext{'pl'}  = 5;
+$html_ext{'pm'}  = 5;
+$html_ext{'xs'}  = 5;
+$html_ext{'ps'}  = 5;
+$html_ext{'gz'}  = 5;
+$html_ext{'Z'}   = 5;
+$html_ext{'c'}   = 5;
+$html_ext{'h'}   = 5;
+
 # Allow anchors (<A HREF="...">...</A>)
 # extending over 1) one 2) two 3) several lines
 # by 1) not changing 2) setting to '' 3) undef'ing
@@ -107,6 +125,8 @@ push(@skip, $treefile);
 undef $/;
 
 # =================================== Main ====================================
+
+$ext_pattern = join('|', keys(%html_ext));
 
 # Check if this script is running under root:
 
@@ -607,6 +627,7 @@ sub traverse_tree
     # uses globals $map_ext, %visited
 
     $title = '';
+    $result = [ ];
     unless (($thisdir,$thispage,$type) = find_page($thispage))
     {
         print LOGFILE "(coming from '$prevpage' -\ntree pruned abnormally)\n";
@@ -640,6 +661,13 @@ sub traverse_tree
             print LOGFILE $separator;
             return();
         }
+    }
+    elsif ($type == 5)
+    {
+        $title = $thispage;
+        $title =~ s!^.*/!!;
+        print LOGFILE $separator;
+        return($result,$title);
     }
     else
     {
@@ -696,7 +724,6 @@ sub traverse_tree
 
     &restore_root_id if (($type == 3) || ($type == 4));
     print LOGFILE $separator;
-    $result = [ ];
     while (@nextpages)
     {
         $ref = shift(@nextpages);
@@ -805,7 +832,12 @@ sub html_footer
 </PRE>
 
 <P>
-Diese Seite wurde <A HREF="$self">mit diesem Skript generiert</A>.
+Diese Seite wurde mit
+<A HREF="$self">$self $version</A>
+generiert. N&auml;here Informationen sind in der
+<A HREF="README">README</A>-Datei
+zu finden. Beide Dateien zusammen kann man auch
+<A HREF="$self-$VERSION.tar.gz">Downloaden</A>.
 <P>
 
 <!-- Textende -->
